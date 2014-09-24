@@ -26,6 +26,7 @@ public class PlayActivity extends Activity
 	private ImageButton mEraserTool;
 	private ImageButton mClearTool;
 	
+	// see: http://stackoverflow.com/questions/25758294/how-to-fill-different-color-on-same-area-of-imageview-color-over-another-color/
 	static int[] COLORS = {
 		Color.rgb(255,  51, 255), // DARK PINK
 		Color.rgb(255, 230, 102), // LIGHT YELLOW
