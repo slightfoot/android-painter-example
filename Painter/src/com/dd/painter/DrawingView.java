@@ -163,6 +163,9 @@ public class DrawingView extends View
 				break;
 			
 			case MotionEvent.ACTION_MOVE:
+				for(int i = 0; i < event.getHistorySize(); i++){
+					mPath.lineTo(event.getHistoricalX(i), event.getHistoricalY(i));
+				}
 				mPath.lineTo(x, y);
 				break;
 			
