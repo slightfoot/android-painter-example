@@ -1,21 +1,19 @@
 package com.dd.painter;
 
-import android.os.Parcelable;
-
-import android.os.Parcel;
+import android.graphics.Shader;
+import android.graphics.BitmapShader;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
-import android.graphics.PorterDuffColorFilter;
 import android.graphics.PorterDuffXfermode;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -23,14 +21,14 @@ import android.view.View;
 
 public class DrawingView extends View
 {
-	private final Paint  mPaintShape   = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
-	private final Paint  mPaintStroke  = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+	private final Paint  mPaintSrcIn   = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
+	private final Paint  mPaintDstIn   = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.DITHER_FLAG | Paint.FILTER_BITMAP_FLAG);
 	private final Paint  mPaintColor   = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private final Paint  mPaintEraser  = new Paint(Paint.ANTI_ALIAS_FLAG);
 	
 	private final Path   mPath         = new Path();
 	
-	private Bitmap mInnerShape, mOuterShape;
+	private Bitmap mInnerShape,  mOuterShape;
 	private Bitmap mBitmapLayer, mBitmapDraw;
 	private Canvas mCanvasLayer, mCanvasDraw;
 	
@@ -51,8 +49,8 @@ public class DrawingView extends View
 	{
 		super(context, attrs, defStyle);
 		
-		mPaintShape.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
-		mPaintStroke.setColorFilter(new PorterDuffColorFilter(Color.BLACK, PorterDuff.Mode.SRC_IN));
+		mPaintSrcIn.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
+		mPaintDstIn.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
 		
 		mPaintColor.setStrokeWidth(30);
 		mPaintColor.setStyle(Paint.Style.STROKE);
@@ -61,8 +59,9 @@ public class DrawingView extends View
 		
 		mPaintEraser.set(mPaintColor);
 		
-		mPaintEraser.setColor(Color.WHITE);
-		mPaintEraser.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.LIGHTEN));
+		//mPaintEraser.setColor(Color.WHITE);
+		mPaintEraser.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+		//mPaintEraser.setColorFilter(new PorterDuffColorFilter(Color.YELLOW, PorterDuff.Mode.SRC_IN));
 		mPaintEraser.setMaskFilter(new BlurMaskFilter(5 * getResources().getDisplayMetrics().density,
 			BlurMaskFilter.Blur.NORMAL));
 		
@@ -139,18 +138,38 @@ public class DrawingView extends View
 	{
 		super.onDraw(canvas);
 		
-		mCanvasLayer.drawColor(0, PorterDuff.Mode.CLEAR);
-		mCanvasLayer.drawBitmap(mInnerShape, 0, 0, null);
-		mCanvasLayer.saveLayer(null, mPaintShape, Canvas.FULL_COLOR_LAYER_SAVE_FLAG | Canvas.HAS_ALPHA_LAYER_SAVE_FLAG);
-		mCanvasLayer.drawColor(Color.WHITE);
-		mCanvasLayer.drawBitmap(mBitmapDraw, 0, 0, null);
-		mCanvasLayer.drawPath(mPath, mPaintDraw);
-		mCanvasLayer.restore();
 		
-		canvas.drawBitmap(mOuterShape,  0, 0, mPaintStroke);
+		// NOTE: Without extra bitmap or layer.. but HW Acceleration does not support setMaskFilter which means
+		// eraser has strong edges whilst drawing.
+		// @see http://developer.android.com/guide/topics/graphics/hardware-accel.html#unsupported 
+		/*
+		canvas.drawBitmap(mOuterShape, 0, 0, null);
+		canvas.saveLayer(null, mPaint, Canvas.FULL_COLOR_LAYER_SAVE_FLAG);
+		canvas.drawColor(0, PorterDuff.Mode.CLEAR);
+		canvas.drawBitmap(mInnerShape, 0, 0, null);
+		canvas.saveLayer(null, mPaintSrcIn, Canvas.FULL_COLOR_LAYER_SAVE_FLAG);
+		canvas.drawBitmap(mBitmapDraw, 0, 0, null);
+		canvas.drawPath(mPath, mPaintDraw);
+		canvas.restore();
+		canvas.restore();
+		*/
+		
+		// Clear software canvas
+		mCanvasLayer.drawColor(0, PorterDuff.Mode.CLEAR);
+		// Draw previously drawn lines
+		mCanvasLayer.drawBitmap(mBitmapDraw, 0, 0, null);
+		// Draw currently drawn line
+		mCanvasLayer.drawPath(mPath, mPaintDraw);
+		// Mask the drawing to the inner surface area of the shape
+		mCanvasLayer.drawBitmap(mInnerShape, 0, 0, mPaintDstIn);
+		
+		// Draw orignal shape to view
+		canvas.drawBitmap(mOuterShape, 0, 0, null);
+		// Draw masked image to view
 		canvas.drawBitmap(mBitmapLayer, 0, 0, null);
 	}
 	
+	@SuppressLint("ClickableViewAccessibility")
 	@Override
 	public boolean onTouchEvent(MotionEvent event)
 	{

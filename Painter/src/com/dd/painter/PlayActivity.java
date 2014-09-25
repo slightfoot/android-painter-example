@@ -1,7 +1,8 @@
 package com.dd.painter;
 
-import android.content.res.Configuration;
+import android.content.res.Resources;
 
+import android.content.res.Configuration;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
@@ -30,22 +31,22 @@ public class PlayActivity extends Activity
 	static int[] COLORS = {
 		Color.rgb(255,  51, 255), // DARK PINK
 		Color.rgb(255, 230, 102), // LIGHT YELLOW
-		Color.rgb(148,  66,  50), // DARK MARUN
-		Color.rgb(186, 123,  68), // LIGHT MARUN
+		Color.rgb(148,  66,  50), // DARK MAROON
+		Color.rgb(186, 123,  68), // LIGHT MAROON
 		Color.rgb(252,  20,  20), // RED
-		Color.rgb(102, 255, 255), // LIGHT_BLUE
+		Color.rgb(102, 255, 255), // LIGHT BLUE
 		
-		Color.rgb( 70,  78, 202), // DARK_BLUE
-		Color.rgb(190, 255,  91), // LIGHT_GREEN
-		Color.rgb( 15, 230,   0), // DARK_GREEN
+		Color.rgb( 70,  78, 202), // DARK BLUE
+		Color.rgb(190, 255,  91), // LIGHT GREEN
+		Color.rgb( 15, 230,   0), // DARK GREEN
 		Color.rgb(123,   0, 230), // JAMBLI
 		Color.rgb(255, 187,  50), // ORANGE
 		Color.rgb(  7,   5,   0), // BLACK
 		
 		Color.rgb(129, 128, 127), // GRAY
-		Color.rgb(255,   4, 139), // PINK_RED
-		Color.rgb( 51, 204, 255), // NEAV_YBLUE
-		Color.rgb(102, 255, 204), // ADVANCE_GREEN
+		Color.rgb(255,   4, 139), // PINK RED
+		Color.rgb( 51, 204, 255), // NAVY BLUE
+		Color.rgb(102, 255, 204), // BRIGHT GREEN
 	};
 	
 	
@@ -53,12 +54,12 @@ public class PlayActivity extends Activity
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
-		getWindow().setBackgroundDrawable(createCheckerBoard(16));
+		getWindow().setBackgroundDrawable(createCheckerBoard(getResources(), 16));
 		
 		setContentView(R.layout.activity_play);
 		
 		mDrawingView = (DrawingView)findViewById(R.id.drawing_view);
-		mDrawingView.setShape(R.drawable.img_a_inner, R.drawable.img_a_outer);
+		mDrawingView.setShape(R.drawable.img_a_inner, R.drawable.img_a);
 		
 		int rowLimit = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 3 : 6;
 		
@@ -106,12 +107,12 @@ public class PlayActivity extends Activity
 		}
 	};
 	
-	private BitmapDrawable createCheckerBoard(int size)
+	public static BitmapDrawable createCheckerBoard(Resources res, int size)
 	{
-		size *= getResources().getDisplayMetrics().density;
+		size *= res.getDisplayMetrics().density;
 		
 		BitmapShader shader = new BitmapShader(Bitmap.createBitmap(new int[] {
-			0xFFFFFFFF, 0xFFCCCCCC, 0xFFCCCCCC, 0xFFFFFFFF}, 2, 2, Bitmap.Config.RGB_565), 
+			0xFFFFFFFF, 0xFFCCCCCC, 0xFFCCCCCC, 0xFFFFFFFF }, 2, 2, Bitmap.Config.RGB_565), 
 			BitmapShader.TileMode.REPEAT, BitmapShader.TileMode.REPEAT);
 		Matrix matrix = new Matrix();
 		matrix.setScale(size, size);
@@ -124,7 +125,7 @@ public class PlayActivity extends Activity
 		Bitmap bm2 = Bitmap.createBitmap(size * 2, size * 2, Bitmap.Config.RGB_565);
 		new Canvas(bm2).drawPaint(paint);
 		
-		BitmapDrawable drawable = new BitmapDrawable(getResources(), bm2);
+		BitmapDrawable drawable = new BitmapDrawable(res, bm2);
 		drawable.setTileModeXY(BitmapShader.TileMode.REPEAT, BitmapShader.TileMode.REPEAT);
 		
 		return drawable;
