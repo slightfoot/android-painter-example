@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	
+	<style name="AppTheme" parent="@android:style/Theme.Holo.Light.DarkActionBar">
+		<item name="android:actionBarStyle">@style/AppActionBar</item>
+	</style>
+	
+	<style name="AppTheme.Fullscreen">
+		<item name="android:windowFullscreen">true</item>
+		<item name="android:windowContentOverlay">@null</item>
+	</style>
+	
+	<style name="AppActionBar" parent="@android:style/Widget.Holo.Light.ActionBar.Solid.Inverse">
+		<item name="android:background">@color/ab_color</item>
+		<item name="android:backgroundSplit">@color/ab_color</item>
+		<item name="android:displayOptions">showTitle</item>
+	</style>
+	
+</resources>

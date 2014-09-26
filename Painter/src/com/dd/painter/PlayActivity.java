@@ -1,31 +1,40 @@
 package com.dd.painter;
 
-import android.content.res.Resources;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
-import android.content.res.Configuration;
+import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
-import android.graphics.BitmapShader;
-import android.graphics.Canvas;
+import android.graphics.Bitmap.CompressFormat;
 import android.graphics.Color;
-import android.graphics.Matrix;
-import android.graphics.Paint;
-import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageButton;
 import android.widget.TableLayout;
 import android.widget.TableRow;
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+import android.widget.Toast;
+
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 
 public class PlayActivity extends Activity
 {
 	private DrawingView mDrawingView;
-	private ImageButton mEraserTool;
-	private ImageButton mClearTool;
+	private TableLayout mBrushPanel;
 	
 	// see: http://stackoverflow.com/questions/25758294/how-to-fill-different-color-on-same-area-of-imageview-color-over-another-color/
 	static int[] COLORS = {
@@ -54,30 +63,64 @@ public class PlayActivity extends Activity
 	protected void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
-		getWindow().setBackgroundDrawable(createCheckerBoard(getResources(), 16));
+		
+		getWindow().setBackgroundDrawable(Utils.createCheckerBoard(getResources(), 16));
 		
 		setContentView(R.layout.activity_play);
 		
 		mDrawingView = (DrawingView)findViewById(R.id.drawing_view);
 		mDrawingView.setShape(R.drawable.img_a_inner, R.drawable.img_a);
+		mDrawingView.setDrawingColor(getResources().getColor(R.color.ab_color));
 		
-		int rowLimit = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 3 : 6;
-		
-		TableLayout controlsPanel = (TableLayout)findViewById(R.id.controls_panel);
+		mBrushPanel = (TableLayout)findViewById(R.id.brush_panel);
+		mBrushPanel.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener()
+		{
+			@Override
+			public boolean onPreDraw()
+			{
+				mBrushPanel.getViewTreeObserver().removeOnPreDrawListener(this);
+				mBrushPanel.setTranslationY(isLandscape() ? 
+					-mBrushPanel.getHeight() : mBrushPanel.getHeight());
+				return false;
+			}
+		});
+		createBrushPanelContent();
+	}
+	
+	@SuppressWarnings("null")
+	private void createBrushPanelContent()
+	{
+		int rowLimit = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 16 : 8;
 		TableRow tableRow = null;
 		for(int i = 0; i < COLORS.length; i++){
 			if((i % rowLimit) == 0){
 				tableRow = new TableRow(this);
-				controlsPanel.addView(tableRow, new ViewGroup.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
+				mBrushPanel.addView(tableRow, new TableLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
 			}
-			tableRow.addView(createToolButton(tableRow, R.drawable.paint_spot, i));
+			tableRow.addView(createToolButton(tableRow, R.drawable.ic_paint_splot, i));
 		}
-		mEraserTool = createToolButton(tableRow, R.drawable.paint_eraser, -1);
-		tableRow.addView(mEraserTool);
-		mClearTool  = createToolButton(tableRow, R.drawable.paint_clear, -1);
-		tableRow.addView(mClearTool);
 	}
-		
+	
+	private void showBrushPanel()
+	{
+		mBrushPanel.animate()
+			.translationY(0)
+			.start();
+	}
+	
+	private void hideBrushPanel()
+	{
+		mBrushPanel.animate()
+			.translationY(isLandscape() ? 
+				-mBrushPanel.getHeight() : mBrushPanel.getHeight())
+			.start();
+	}
+	
+	private boolean isLandscape()
+	{
+		return getResources().getBoolean(R.bool.is_landscape);
+	}
+	
 	private ImageButton createToolButton(ViewGroup parent, int drawableResId, int index)
 	{
 		ImageButton button = (ImageButton)getLayoutInflater().inflate(R.layout.button_paint_spot, parent, false);
@@ -95,39 +138,125 @@ public class PlayActivity extends Activity
 		@Override
 		public void onClick(View v)
 		{
-			if(v == mEraserTool){
-				mDrawingView.enableEraser();
-			}
-			else if(v == mClearTool){
-				mDrawingView.clearDrawing();
-			}
-			else{
-				mDrawingView.setDrawingColor(COLORS[((Integer)v.getTag()).intValue()]);
-			}
+			mDrawingView.setDrawingColor(COLORS[((Integer)v.getTag()).intValue()]);
+			hideBrushPanel();
 		}
 	};
 	
-	public static BitmapDrawable createCheckerBoard(Resources res, int size)
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu)
 	{
-		size *= res.getDisplayMetrics().density;
+		getMenuInflater().inflate(R.menu.activity_play, menu);
+		return super.onCreateOptionsMenu(menu) | true;
+	}
+	
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item)
+	{
+		switch(item.getItemId()){
+			case R.id.action_brush:
+				if(mBrushPanel.getTranslationY() == 0){
+					hideBrushPanel();
+				}
+				else{
+					showBrushPanel();
+				}
+				break;
+				
+			case R.id.action_eraser:
+				mDrawingView.enableEraser();
+				break;
+				
+			case R.id.action_undo:
+				mDrawingView.undoOperation();
+				break;
+				
+			case R.id.action_redo:
+				mDrawingView.redoOperation();
+				break;
+				
+			case R.id.action_save:
+				{
+					mDrawingView.setDrawingCacheQuality(View.DRAWING_CACHE_QUALITY_HIGH);
+					mDrawingView.setDrawingCacheEnabled(true);
+					mDrawingView.buildDrawingCache();
+					Bitmap viewCache = mDrawingView.getDrawingCache();
+					Bitmap bitmap = viewCache.copy(viewCache.getConfig(), false);
+					mDrawingView.setDrawingCacheEnabled(false);
+					new SaveTask().execute(bitmap);
+				}
+				break;
+				
+			case R.id.action_cancel:
+				mDrawingView.clearDrawing();
+				break;
+				
+			default:
+				return super.onOptionsItemSelected(item);
+		}
 		
-		BitmapShader shader = new BitmapShader(Bitmap.createBitmap(new int[] {
-			0xFFFFFFFF, 0xFFCCCCCC, 0xFFCCCCCC, 0xFFFFFFFF }, 2, 2, Bitmap.Config.RGB_565), 
-			BitmapShader.TileMode.REPEAT, BitmapShader.TileMode.REPEAT);
-		Matrix matrix = new Matrix();
-		matrix.setScale(size, size);
-		shader.setLocalMatrix(matrix);
+		return true;
+	}
+	
+	private class SaveTask extends AsyncTask<Bitmap, Void, File>
+	{
+		private ProgressDialog mProgressDialog;
 		
-		Paint paint = new Paint();
-		paint.setStyle(Paint.Style.FILL);
-		paint.setShader(shader);
 		
-		Bitmap bm2 = Bitmap.createBitmap(size * 2, size * 2, Bitmap.Config.RGB_565);
-		new Canvas(bm2).drawPaint(paint);
+		@Override
+		protected void onPreExecute()
+		{
+			mProgressDialog = new ProgressDialog(PlayActivity.this);
+			mProgressDialog.setMessage(getString(R.string.saving));
+			mProgressDialog.setIndeterminate(true);
+			mProgressDialog.show();
+		}
 		
-		BitmapDrawable drawable = new BitmapDrawable(res, bm2);
-		drawable.setTileModeXY(BitmapShader.TileMode.REPEAT, BitmapShader.TileMode.REPEAT);
+		@Override
+		protected void onPostExecute(File result)
+		{
+			mProgressDialog.dismiss();
+			if(result != null){
+				Toast.makeText(PlayActivity.this, getString(R.string.saved_as) + 
+					result.getName(), Toast.LENGTH_LONG).show();
+			}
+		}
 		
-		return drawable;
+		@SuppressLint("SimpleDateFormat")
+		@Override
+		protected File doInBackground(Bitmap... params)
+		{
+			String name = new SimpleDateFormat("'Painter_'yyyy-MM-dd_HH-mm-ss.S'.png'").format(new Date());
+			File result = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), name);
+			
+			FileOutputStream stream = null;
+			try{
+				try{
+					stream = new FileOutputStream(result);
+					if(params[0].compress(CompressFormat.PNG, 75, stream)){
+						sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(result)));
+					}
+					else{
+						result = null;
+					}
+				}
+				finally{
+					if(stream != null){
+						stream.close();
+					}
+				}
+			}
+			catch(IOException e){
+				result = null;
+			}
+			
+			try{
+				Thread.sleep(1000);
+			}
+			catch(InterruptedException e){
+				//
+			}
+			return result;
+		}
 	}
 }

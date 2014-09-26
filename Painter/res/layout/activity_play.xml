@@ -5,19 +5,17 @@
 	>
 	<com.dd.painter.DrawingView
 		android:id="@+id/drawing_view"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_gravity="top|center_horizontal"
-		android:layout_marginTop="32dp"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
 		android:keepScreenOn="true"
 		/>
 	<TableLayout
-		android:id="@+id/controls_panel"
+		android:id="@+id/brush_panel"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:layout_gravity="bottom"
-		android:background="#22000000"
 		android:stretchColumns="*"
 		android:padding="8dp"
+		android:background="@color/brush_panel_bg"
 		/>
 </FrameLayout>

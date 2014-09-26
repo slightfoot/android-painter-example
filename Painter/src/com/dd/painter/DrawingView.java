@@ -1,19 +1,18 @@
 package com.dd.painter;
 
-import android.graphics.Shader;
-import android.graphics.BitmapShader;
+import java.util.ArrayList;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BlurMaskFilter;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
@@ -26,13 +25,17 @@ public class DrawingView extends View
 	private final Paint  mPaintColor   = new Paint(Paint.ANTI_ALIAS_FLAG);
 	private final Paint  mPaintEraser  = new Paint(Paint.ANTI_ALIAS_FLAG);
 	
-	private final Path   mPath         = new Path();
+	private final Matrix mMatrix = new Matrix();
+	private final Canvas mLayerCanvas = new Canvas();
 	
-	private Bitmap mInnerShape,  mOuterShape;
-	private Bitmap mBitmapLayer, mBitmapDraw;
-	private Canvas mCanvasLayer, mCanvasDraw;
+	private Bitmap mInnerShape;
+	private Bitmap mOuterShape;
+	private Bitmap mLayerBitmap;
 	
-	private Paint mPaintDraw;
+	private ArrayList<DrawOp> mDrawOps = new ArrayList<DrawOp>();
+	private DrawOp mCurrentOp = new DrawOp();
+	
+	private ArrayList<DrawOp> mUndoneOps = new ArrayList<DrawOp>();
 	
 	
 	public DrawingView(Context context)
@@ -49,23 +52,20 @@ public class DrawingView extends View
 	{
 		super(context, attrs, defStyle);
 		
+		float strokeSize = 12 * getResources().getDisplayMetrics().density;
+		
 		mPaintSrcIn.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
 		mPaintDstIn.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
 		
-		mPaintColor.setStrokeWidth(30);
+		mPaintColor.setStrokeWidth(strokeSize);
 		mPaintColor.setStyle(Paint.Style.STROKE);
 		mPaintColor.setStrokeJoin(Paint.Join.ROUND);
 		mPaintColor.setStrokeCap(Paint.Cap.ROUND);
 		
 		mPaintEraser.set(mPaintColor);
-		
-		//mPaintEraser.setColor(Color.WHITE);
+		mPaintEraser.setStrokeWidth(strokeSize);
 		mPaintEraser.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-		//mPaintEraser.setColorFilter(new PorterDuffColorFilter(Color.YELLOW, PorterDuff.Mode.SRC_IN));
-		mPaintEraser.setMaskFilter(new BlurMaskFilter(5 * getResources().getDisplayMetrics().density,
-			BlurMaskFilter.Blur.NORMAL));
-		
-		mPaintDraw = mPaintColor;
+		mPaintEraser.setMaskFilter(new BlurMaskFilter(strokeSize / 3, BlurMaskFilter.Blur.NORMAL));
 	}
 	
 	public void setShape(int inner, int outer)
@@ -80,38 +80,46 @@ public class DrawingView extends View
 	{
 		mInnerShape = inner;
 		mOuterShape = outer;
-		replaceDrawingBitmap(outer.getWidth(), outer.getHeight());
 		requestLayout();
 		invalidate();
 	}
 	
 	public void setDrawingColor(int color)
 	{
-		mPaintDraw = mPaintColor;
-		mPaintDraw.setColor(color);
+		mCurrentOp.reset();
+		mCurrentOp.type = DrawOp.Type.PAINT;
+		mCurrentOp.color = color;
 	}
 	
 	public void enableEraser()
 	{
-		mPaintDraw = mPaintEraser;
+		mCurrentOp.reset();
+		mCurrentOp.type = DrawOp.Type.ERASE;
 	}
 	
 	public void clearDrawing()
 	{
-		mCanvasDraw.drawColor(0, PorterDuff.Mode.CLEAR);
+		mDrawOps.clear();
+		mUndoneOps.clear();
+		mCurrentOp.reset();
 		invalidate();
 	}
 	
-	@Override
-	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec)
+	public void undoOperation()
 	{
-		if(mOuterShape != null){
-			setMeasuredDimension(
-				resolveSize(mOuterShape.getWidth(), widthMeasureSpec),
-				resolveSize(mOuterShape.getHeight(), heightMeasureSpec));
+		if(mDrawOps.size() > 0){
+			DrawOp last = mDrawOps.remove(mDrawOps.size() - 1);
+			mUndoneOps.add(last);
+			invalidate();
 		}
-		else{
-			super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+	}
+	
+	public void redoOperation()
+	{
+		if(mUndoneOps.size() > 0){
+			DrawOp redo = mUndoneOps.remove(mUndoneOps.size() - 1);
+			mDrawOps.add(redo);
+			invalidate();
 		}
 	}
 	
@@ -119,18 +127,14 @@ public class DrawingView extends View
 	protected void onSizeChanged(int w, int h, int oldw, int oldh)
 	{
 		super.onSizeChanged(w, h, oldw, oldh);
-		mBitmapLayer = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-		mCanvasLayer = new Canvas(mBitmapLayer);
-	}
-	
-	private void replaceDrawingBitmap(int w, int h)
-	{
-		Bitmap newBitmapDraw = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-		mCanvasDraw = new Canvas(newBitmapDraw);
-		if(mBitmapDraw != null){
-			mCanvasDraw.drawBitmap(mBitmapDraw, 0, 0, null);
+		mLayerBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+		mLayerCanvas.setBitmap(mLayerBitmap);
+		
+		if(mOuterShape != null){
+			int dx = (w - mOuterShape.getWidth()) / 2;
+			int dy = (h - mOuterShape.getHeight()) / 2;
+			mMatrix.setTranslate(dx, dy);
 		}
-		mBitmapDraw = newBitmapDraw;
 	}
 	
 	@Override
@@ -155,18 +159,37 @@ public class DrawingView extends View
 		*/
 		
 		// Clear software canvas
-		mCanvasLayer.drawColor(0, PorterDuff.Mode.CLEAR);
-		// Draw previously drawn lines
-		mCanvasLayer.drawBitmap(mBitmapDraw, 0, 0, null);
-		// Draw currently drawn line
-		mCanvasLayer.drawPath(mPath, mPaintDraw);
+		mLayerCanvas.drawColor(0, PorterDuff.Mode.CLEAR);
+		
+		// Draw picture from ops
+		for(DrawOp op : mDrawOps){
+			drawOp(mLayerCanvas, op);
+		}
+		drawOp(mLayerCanvas, mCurrentOp);
+		
 		// Mask the drawing to the inner surface area of the shape
-		mCanvasLayer.drawBitmap(mInnerShape, 0, 0, mPaintDstIn);
+		mLayerCanvas.drawBitmap(mInnerShape, mMatrix, mPaintDstIn);
 		
 		// Draw orignal shape to view
-		canvas.drawBitmap(mOuterShape, 0, 0, null);
+		canvas.drawBitmap(mOuterShape, mMatrix, null);
+		
 		// Draw masked image to view
-		canvas.drawBitmap(mBitmapLayer, 0, 0, null);
+		canvas.drawBitmap(mLayerBitmap, 0, 0, null);
+	}
+	
+	private void drawOp(Canvas canvas, DrawOp op)
+	{
+		if(op.path.isEmpty()){
+			return;
+		}
+		final Paint paint;
+		if(op.type == DrawOp.Type.PAINT){
+			paint = mPaintColor;
+			paint.setColor(op.color);
+		}else{
+			paint = mPaintEraser;
+		}
+		mLayerCanvas.drawPath(op.path, paint);
 	}
 	
 	@SuppressLint("ClickableViewAccessibility")
@@ -178,21 +201,22 @@ public class DrawingView extends View
 		
 		switch(event.getAction()){
 			case MotionEvent.ACTION_DOWN:
-				mPath.moveTo(x, y);
+				mUndoneOps.clear();
+				mCurrentOp.path.moveTo(x, y);
 				break;
 			
 			case MotionEvent.ACTION_MOVE:
 				for(int i = 0; i < event.getHistorySize(); i++){
-					mPath.lineTo(event.getHistoricalX(i), event.getHistoricalY(i));
+					mCurrentOp.path.lineTo(event.getHistoricalX(i), event.getHistoricalY(i));
 				}
-				mPath.lineTo(x, y);
+				mCurrentOp.path.lineTo(x, y);
 				break;
 			
 			case MotionEvent.ACTION_UP:
 			case MotionEvent.ACTION_CANCEL:
-				mPath.lineTo(x, y);
-				mCanvasDraw.drawPath(mPath, mPaintDraw);
-				mPath.reset();
+				mCurrentOp.path.lineTo(x, y);
+				mDrawOps.add(new DrawOp(mCurrentOp));
+				mCurrentOp.path.reset();
 				break;
 		}
 		
@@ -201,6 +225,37 @@ public class DrawingView extends View
 		return true;
 	}
 	
+	private static class DrawOp
+	{
+		public final Path path = new Path();
+		public Type type;
+		public int  color;
+		
+		
+		public DrawOp()
+		{
+			//
+		}
+		
+		public void reset()
+		{
+			this.path.reset();
+		}
+
+		public DrawOp(DrawOp op)
+		{
+			this.path.set(op.path);
+			this.type  = op.type;
+			this.color = op.color;
+		}
+		
+		public static enum Type
+		{
+			PAINT, ERASE;
+		}
+	}
+	
+	/*
 	@Override
 	protected Parcelable onSaveInstanceState()
 	{
@@ -259,4 +314,5 @@ public class DrawingView extends View
 			}
 		};
 	}
+	*/
 }

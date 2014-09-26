@@ -9,18 +9,21 @@
 		android:targetSdkVersion="19"
 		/>
 	
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	
 	<application
 		android:allowBackup="true"
 		android:hardwareAccelerated="true"
 		android:icon="@drawable/ic_launcher"
 		android:label="@string/app_name"
-		android:theme="@android:style/Theme.Holo.Light"
+		android:theme="@style/AppTheme"
 		>
 		
 		<activity
 			android:name="com.dd.painter.PlayActivity"
-			android:theme="@android:style/Theme.Holo.Light.NoActionBar.Fullscreen"
+			android:theme="@style/AppTheme.Fullscreen"
 			android:label="@string/app_name"
+			android:uiOptions="splitActionBarWhenNarrow"
 			>
 			<intent-filter>
 				<action   android:name="android.intent.action.MAIN" />

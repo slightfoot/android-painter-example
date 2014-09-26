@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	
+	<item type="id" name="action_brush" />
+	<item type="id" name="action_cancel" />
+	<item type="id" name="action_eraser" />
+	<item type="id" name="action_redo" />
+	<item type="id" name="action_undo" />
+	<item type="id" name="action_save" />
+	
+	<string name="action_brush">Color</string>
+	<string name="action_cancel">Cancel</string>
+	<string name="action_eraser">Eraser</string>
+	<string name="action_redo">Redo</string>
+	<string name="action_undo">Undo</string>
+	<string name="action_save">Save</string>
+	
+</resources>
