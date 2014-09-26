@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import android.widget.SeekBar;
+
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
@@ -27,14 +29,16 @@ import android.widget.ImageButton;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.Toast;
-
 import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 
 public class PlayActivity extends Activity
 {
 	private DrawingView mDrawingView;
-	private TableLayout mBrushPanel;
+	private ViewGroup   mBrushPanel;
+	private ViewGroup   mBrushColors;
+	private SeekBar     mBrushStroke;
+	
 	
 	// see: http://stackoverflow.com/questions/25758294/how-to-fill-different-color-on-same-area-of-imageview-color-over-another-color/
 	static int[] COLORS = {
@@ -72,7 +76,30 @@ public class PlayActivity extends Activity
 		mDrawingView.setShape(R.drawable.img_a_inner, R.drawable.img_a);
 		mDrawingView.setDrawingColor(getResources().getColor(R.color.ab_color));
 		
-		mBrushPanel = (TableLayout)findViewById(R.id.brush_panel);
+		mBrushPanel = (ViewGroup)findViewById(R.id.brush_panel);
+		mBrushColors = (ViewGroup)findViewById(R.id.brush_colors);
+		mBrushStroke = (SeekBar)findViewById(R.id.brush_stroke);
+		
+		mBrushStroke.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener()
+		{
+			@Override
+			public void onStopTrackingTouch(SeekBar seekBar)
+			{
+			}
+			
+			@Override
+			public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser)
+			{
+				mDrawingView.setDrawingStroke(progress);
+			}
+			
+			@Override
+			public void onStartTrackingTouch(SeekBar seekBar)
+			{
+			}
+		});
+		mBrushStroke.setProgress(30);
+		
 		mBrushPanel.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener()
 		{
 			@Override
@@ -84,18 +111,19 @@ public class PlayActivity extends Activity
 				return false;
 			}
 		});
+		
 		createBrushPanelContent();
 	}
 	
 	@SuppressWarnings("null")
 	private void createBrushPanelContent()
 	{
-		int rowLimit = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 16 : 8;
 		TableRow tableRow = null;
+		final int rowLimit = isLandscape() ? 16 : 8;
 		for(int i = 0; i < COLORS.length; i++){
 			if((i % rowLimit) == 0){
 				tableRow = new TableRow(this);
-				mBrushPanel.addView(tableRow, new TableLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
+				mBrushColors.addView(tableRow, new TableLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT));
 			}
 			tableRow.addView(createToolButton(tableRow, R.drawable.ic_paint_splot, i));
 		}

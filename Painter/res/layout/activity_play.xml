@@ -9,13 +9,26 @@
 		android:layout_height="match_parent"
 		android:keepScreenOn="true"
 		/>
-	<TableLayout
+	<LinearLayout
 		android:id="@+id/brush_panel"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:layout_gravity="bottom"
-		android:stretchColumns="*"
-		android:padding="8dp"
+		android:baselineAligned="false"
+		android:orientation="vertical"
 		android:background="@color/brush_panel_bg"
-		/>
+		android:padding="8dp"
+		>
+		<SeekBar
+			android:id="@+id/brush_stroke"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			/>
+		<TableLayout
+			android:id="@+id/brush_colors"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:stretchColumns="*"
+			/>
+	</LinearLayout>
 </FrameLayout>

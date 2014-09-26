@@ -52,20 +52,17 @@ public class DrawingView extends View
 	{
 		super(context, attrs, defStyle);
 		
-		float strokeSize = 12 * getResources().getDisplayMetrics().density;
-		
 		mPaintSrcIn.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));
 		mPaintDstIn.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
 		
-		mPaintColor.setStrokeWidth(strokeSize);
 		mPaintColor.setStyle(Paint.Style.STROKE);
 		mPaintColor.setStrokeJoin(Paint.Join.ROUND);
 		mPaintColor.setStrokeCap(Paint.Cap.ROUND);
 		
 		mPaintEraser.set(mPaintColor);
-		mPaintEraser.setStrokeWidth(strokeSize);
 		mPaintEraser.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
-		mPaintEraser.setMaskFilter(new BlurMaskFilter(strokeSize / 3, BlurMaskFilter.Blur.NORMAL));
+		mPaintEraser.setMaskFilter(new BlurMaskFilter(getResources()
+			.getDisplayMetrics().density * 4, BlurMaskFilter.Blur.NORMAL));
 	}
 	
 	public void setShape(int inner, int outer)
@@ -89,6 +86,13 @@ public class DrawingView extends View
 		mCurrentOp.reset();
 		mCurrentOp.type = DrawOp.Type.PAINT;
 		mCurrentOp.color = color;
+	}
+	
+	public void setDrawingStroke(int stroke)
+	{
+		mCurrentOp.reset();
+		mCurrentOp.type = DrawOp.Type.PAINT;
+		mCurrentOp.stroke = stroke;
 	}
 	
 	public void enableEraser()
@@ -142,6 +146,9 @@ public class DrawingView extends View
 	{
 		super.onDraw(canvas);
 		
+		if(isInEditMode()){
+			return;
+		}
 		
 		// NOTE: Without extra bitmap or layer.. but HW Acceleration does not support setMaskFilter which means
 		// eraser has strong edges whilst drawing.
@@ -186,8 +193,10 @@ public class DrawingView extends View
 		if(op.type == DrawOp.Type.PAINT){
 			paint = mPaintColor;
 			paint.setColor(op.color);
+			paint.setStrokeWidth(op.stroke);
 		}else{
 			paint = mPaintEraser;
+			paint.setStrokeWidth(op.stroke);
 		}
 		mLayerCanvas.drawPath(op.path, paint);
 	}
@@ -230,6 +239,7 @@ public class DrawingView extends View
 		public final Path path = new Path();
 		public Type type;
 		public int  color;
+		public int  stroke;
 		
 		
 		public DrawOp()
@@ -245,8 +255,9 @@ public class DrawingView extends View
 		public DrawOp(DrawOp op)
 		{
 			this.path.set(op.path);
-			this.type  = op.type;
-			this.color = op.color;
+			this.type   = op.type;
+			this.color  = op.color;
+			this.stroke = op.stroke;
 		}
 		
 		public static enum Type
